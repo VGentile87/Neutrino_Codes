@@ -1,0 +1,70 @@
+{
+//========= Macro generated from object: hthe/hthe
+//========= by ROOT version5.34/30
+   
+   TH1F *hthe__1 = new TH1F("hthe__1","hthe",100,-1,1);
+   hthe__1->SetBinContent(75,7048);
+   hthe__1->SetBinContent(76,13419);
+   hthe__1->SetBinContent(77,7824);
+   hthe__1->SetBinContent(78,6570);
+   hthe__1->SetBinContent(79,5648);
+   hthe__1->SetBinContent(80,5216);
+   hthe__1->SetBinContent(81,5004);
+   hthe__1->SetBinContent(82,4682);
+   hthe__1->SetBinContent(83,4712);
+   hthe__1->SetBinContent(84,4588);
+   hthe__1->SetBinContent(85,4618);
+   hthe__1->SetBinContent(86,4485);
+   hthe__1->SetBinContent(87,4499);
+   hthe__1->SetBinContent(88,4596);
+   hthe__1->SetBinContent(89,4736);
+   hthe__1->SetBinContent(90,4835);
+   hthe__1->SetBinContent(91,4920);
+   hthe__1->SetBinContent(92,5156);
+   hthe__1->SetBinContent(93,5427);
+   hthe__1->SetBinContent(94,5672);
+   hthe__1->SetBinContent(95,6031);
+   hthe__1->SetBinContent(96,6634);
+   hthe__1->SetBinContent(97,7396);
+   hthe__1->SetBinContent(98,8536);
+   hthe__1->SetBinContent(99,11225);
+   hthe__1->SetBinContent(100,26523);
+   hthe__1->SetEntries(180000);
+   hthe__1->SetDirectory(0);
+   
+   TPaveStats *ptstats = new TPaveStats(0.611021,0.780583,0.810913,0.940777,"brNDC");
+   ptstats->SetName("stats");
+   ptstats->SetBorderSize(1);
+   ptstats->SetFillColor(0);
+   ptstats->SetTextAlign(12);
+   ptstats->SetTextFont(42);
+   TText *text = ptstats->AddText("hthe");
+   text->SetTextSize(0.0368447);
+   text = ptstats->AddText("Entries = 180000 ");
+   text = ptstats->AddText("Mean  = 0.7697");
+   text = ptstats->AddText("RMS   =  0.176");
+   ptstats->SetOptStat(1111);
+   ptstats->SetOptFit(0);
+   ptstats->Draw();
+   hthe__1->GetListOfFunctions()->Add(ptstats);
+   ptstats->SetParent(hthe__1);
+
+   Int_t ci;      // for color index setting
+   TColor *color; // for color definition with alpha
+   ci = TColor::GetColor("#000099");
+   hthe__1->SetLineColor(ci);
+   hthe__1->GetXaxis()->SetLabelFont(42);
+   hthe__1->GetXaxis()->SetLabelSize(0.035);
+   hthe__1->GetXaxis()->SetTitleSize(0.035);
+   hthe__1->GetXaxis()->SetTitleFont(42);
+   hthe__1->GetYaxis()->SetRange(1,1);
+   hthe__1->GetYaxis()->SetLabelFont(42);
+   hthe__1->GetYaxis()->SetLabelSize(0.035);
+   hthe__1->GetYaxis()->SetTitleSize(0.035);
+   hthe__1->GetYaxis()->SetTitleFont(42);
+   hthe__1->GetZaxis()->SetLabelFont(42);
+   hthe__1->GetZaxis()->SetLabelSize(0.035);
+   hthe__1->GetZaxis()->SetTitleSize(0.035);
+   hthe__1->GetZaxis()->SetTitleFont(42);
+   hthe__1->Draw("");
+}

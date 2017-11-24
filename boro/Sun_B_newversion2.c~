@@ -1,0 +1,311 @@
+#include <stdio.h>
+#include <iostream>
+#include <math.h>
+#include <cmath>
+#include <iomanip>      // std::setprecision
+#include <fstream>
+#include <vector>
+#include <time.h>
+
+#include "TH1F.h"
+#include "TMath.h"
+#include "TComplex.h"
+#include "TCanvas.h"
+#include "TTree.h"
+#include "TFile.h"
+#include "TStyle.h"
+#include "TString.h"
+#include "TLine.h"
+#include "TROOT.h"
+#include "TCanvas.h"
+#include "TMultiGraph.h"
+#include "TGraph.h"
+#include "TLegend.h"
+#include "TPaveStats.h"
+
+#include "Definitions_sn2.h"
+#include "Functions.h"
+#include "EnergyRangeCorrelation.C"
+#include "TRandom3.h"
+
+
+
+using namespace std;
+
+void Sn_nu_newfluence() {
+
+  //int opzioni = 0;
+
+  //cout << "Test di Controllo (tesi Gallo Rosso): opzione '0'"<<endl;
+  //cout << "SN neutrinos in NEWS (V. Gentile): opzione '1'" <<endl;
+  //cout <<"\n Scegli opzione: ";
+  //cin << opzioni;
+  //start(opzioni);
+
+  ofstream log_file;
+  log_file.open ("num_eventi.txt");
+  log_file << "SN Neutrino induced recoil rate";
+  log_file << endl;
+  
+  Int_t index=0;
+  TRandom3 *t = new TRandom3();
+  TRandom3 *tt = new TRandom3();
+  
+  Functions* functions;
+
+  functions = new Functions();
+  
+  gStyle->SetOptStat("eMR");
+  gStyle->SetStatW(0.2);
+  gStyle->SetStatH(0.15);
+
+  gr_spect[0]=new TGraph();
+  gr_spect[1]=new TGraph();
+  gr_spect[2]=new TGraph();
+
+  h4->Sumw2();
+  h44->Sumw2();
+  h2->Sumw2();
+  hthe->Sumw2();
+
+  //// COSTHETA  //////////////////////////////////////////////////////
+  TH1F* h_norm_cos_theta = new TH1F("norm_theta","nt",200,-1,1);
+  for(int k=0;k<d_theta;k++){
+    h_norm_cos_theta->Fill(-1 + 1./d_theta + k*(2./d_theta),1./d_theta + k*(2./d_theta));
+  }
+  TCanvas *cnt = new TCanvas("cnt","cnt",600,600);
+  h_norm_cos_theta->Draw("");
+  h_norm_cos_theta->Scale(1./h_norm_cos_theta->Integral());
+  /////////////////////////////////////////////////////////////////
+
+  for(int i=0; i<n_el;i++){
+
+    iel = el[i];
+    iZ_el = Z_el[i];
+    iA_el = A_el[i];
+    ifract_el = atomic_fract_el[i]; // uma
+    imass_fract = mass_fract[i];
+    iM_el=iA_el*uma;
+    iN_el = N_el[i];
+    //ithr_el = thr_el[i]; //keV   cut 100 nm
+    num_ev_el=0;
+    err_num_ev_el=0;
+    num_ev_bkg=0;
+
+    gr_sigma[i]=new TGraph();
+    
+
+    sum_E=0;
+    index=0;
+    
+    for(int j=1; j<E_nu_max;j++){
+      E_nu=j;
+      sum_crsect=0;
+      
+      spect_nu_e = (tot_ene_e/mean_ene_e)*(TMath::Power(E_nu,alpha_e)/TMath::Gamma(alpha_e+1))*TMath::Power(((alpha_e+1)/mean_ene_e),alpha_e+1)*TMath::Exp(-E_nu*(alpha_e+1)/mean_ene_e);
+      spect_antinu_e = (tot_ene_antie/mean_ene_antie)*(TMath::Power(E_nu,alpha_antie)/TMath::Gamma(alpha_antie+1))*TMath::Power(((alpha_antie+1)/mean_ene_antie),alpha_antie+1)*TMath::Exp(-E_nu*(alpha_antie+1)/mean_ene_antie);
+      spect_nu_x = (tot_ene_x/mean_ene_x)*(TMath::Power(E_nu,alpha_x)/TMath::Gamma(alpha_x+1))*TMath::Power(((alpha_x+1)/mean_ene_x),alpha_x+1)*TMath::Exp(-E_nu*(alpha_x+1)/mean_ene_x);
+      
+      
+      if(i==0){
+	gr_spect[0]->SetPoint(j-1,E_nu,spect_nu_e);
+	gr_spect[1]->SetPoint(j-1,E_nu,spect_antinu_e);
+	gr_spect[2]->SetPoint(j-1,E_nu,spect_nu_x);
+      }
+
+      h1->Reset(0);
+      
+      for(int k=0;k<d_theta;k++){
+
+	////// CROSS SECTION  //////////////////////////////
+	//cos_theta = h_norm_cos_theta->GetRandom();
+	cos_theta = -1 + 1./d_theta + k*(2./d_theta); // devi moltiplicare per delta theta
+	crsect = functions->cross_section();
+	h1->Fill(cos_theta,crsect);
+	///////////////////////////////////	
+      }
+
+      h1->Scale(1./h1->Integral());
+      
+      for(int k=0;k<d_theta;k++){
+	cos_theta = -1 + 1./d_theta + k*(2./d_theta); // devi moltiplicare per delta theta
+	//cos_theta_norm = h1->GetRandom();
+	cos_theta_norm = cos_theta;
+	h11->Fill(cos_theta_norm);
+	
+	crsect = functions->cross_section();
+	sum_crsect = crsect + sum_crsect;
+	
+	E_rec = (E_nu*E_nu*(1-cos_theta_norm))/(E_nu*(1-cos_theta_norm)+iM_el*TMath::Power(10,3)); // MeV
+	cos_theta_rec = ((E_nu + iM_el*TMath::Power(10,3))/(E_nu))*TMath::Sqrt(E_rec/(2*iM_el*TMath::Power(10,3)));
+	theta_rec = TMath::ACos(cos_theta_rec);
+	theta_nu = TMath::ASin((TMath::Sqrt(2*(iM_el/1000.)*E_rec)*TMath::Sin(theta_rec))/(E_nu-TMath::Sqrt(2*(iM_el/1000.)*E_rec)));
+	L_true = GetRangeFromEnergy(iZ_el,E_rec*1000);
+	L_proj = L_true*cos_theta_rec;
+	
+	
+	////////////////////  BOOST LORENTZ  /////////////////////////////////////////////////////////////
+	E_nu_cm = E_nu*TMath::Sqrt((iM_el*1000)/(iM_el*1000+2*E_nu)); //MeV    
+	E_rec_cm = TMath::Sqrt(E_nu_cm*E_nu_cm+iM_el*iM_el*1000000);     //MeV
+	 
+	rnd_cos_theta_cm = tt->Uniform(-1,1);
+	rnd_phi_cm = tt->Uniform(0,2*TMath::Pi());
+	 
+	px_cm = E_nu_cm*TMath::Sqrt((1-TMath::Power(rnd_cos_theta_cm,2)))*TMath::Sin(rnd_phi_cm);
+	py_cm = E_nu_cm*TMath::Sqrt((1-TMath::Power(rnd_cos_theta_cm,2)))*TMath::Cos(rnd_phi_cm);
+	pz_cm = E_nu_cm*rnd_cos_theta_cm;
+	p_mod_cm = TMath::Sqrt(px_cm*px_cm + py_cm*py_cm + pz_cm*pz_cm);
+	 
+	beta_cm = E_nu/(E_nu + iM_el*1000);
+	gamma_cm = (E_nu + iM_el*1000)/(TMath::Sqrt(iM_el*iM_el*1000000 + 2*E_nu*iM_el*1000));
+	py_lab = beta_cm*gamma_cm*E_rec_cm + gamma_cm*py_cm;
+	E_tot_lab = gamma_cm*E_rec_cm + beta_cm*gamma_cm*py_cm;  //MeV
+	E_rec_lab = gamma_cm*E_rec_cm + beta_cm*gamma_cm*py_cm - iM_el*1000; //MeV
+	p_mod_lab = TMath::Sqrt(E_tot_lab*E_tot_lab - iM_el*iM_el*1000000);
+	the_rec = TMath::ATan2(TMath::Sqrt((1-TMath::Power(rnd_cos_theta_cm,2))),(gamma_cm*(beta_cm*(E_rec_cm/p_mod_cm)+rnd_cos_theta_cm)));  //buono
+	phi_rec = TMath::ATan2(py_lab,px_cm)-TMath::Pi()/2.;
+	 
+	hpx_cm->Fill(px_cm);
+	hpy_cm->Fill(py_cm);
+	hpz_cm->Fill(pz_cm);
+	hpy_lab->Fill(py_lab);
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	 
+
+	//hphi->Fill(phi_rec,atomic_fract_el[i]*A_el[i]*A_el[i]*crsect);
+	//hthe->Fill(the_rec,atomic_fract_el[i]*A_el[i]*A_el[i]*crsect);
+	 
+	hphi->Fill(phi_rec,atomic_fract_el[i]*A_el[i]*A_el[i]);
+	hthe->Fill(the_rec,atomic_fract_el[i]*A_el[i]*A_el[i]);
+	h2->Fill(theta_rec,atomic_fract_el[i]*A_el[i]*A_el[i]);
+	 
+	h4->Fill(E_rec*1000,atomic_fract_el[i]*A_el[i]*A_el[i]);
+	h44->Fill(E_rec_lab*1000,atomic_fract_el[i]*A_el[i]*A_el[i]);
+
+	if(L_true>=100 && L_true<=1000 /*L_true>0*/){
+	   
+	  num_ev_el += functions->num_eventi_per_energia_newfluence();
+	  err_num_ev_el += functions->num_eventi_per_energia()*0.2248*TMath::Sqrt(1+7.61*TMath::Power(E_nu/24.82 - 1,2));
+	  num_ev += functions->num_eventi_per_energia_newfluence();
+	  err_num_ev += functions->num_eventi_per_energia()*0.2248*TMath::Sqrt(1+7.61*TMath::Power(E_nu/24.82 - 1,2));
+      
+	  if(i==0)hh0->Fill(L_true/1000.,atomic_fract_el[i]*A_el[i]*A_el[i]);
+	  if(i==1)hh1->Fill(L_true/1000.,atomic_fract_el[i]*A_el[i]*A_el[i]);
+	  if(i==2)hh2->Fill(L_true/1000.,atomic_fract_el[i]*A_el[i]*A_el[i]);
+	  if(i==3)hh3->Fill(L_true/1000.,atomic_fract_el[i]*A_el[i]*A_el[i]);
+	  if(i==4)hh4->Fill(L_true/1000.,atomic_fract_el[i]*A_el[i]*A_el[i]);
+	  if(i==5)hh5->Fill(L_true/1000.,atomic_fract_el[i]*A_el[i]*A_el[i]);
+	  if(i==6)hh6->Fill(L_true/1000.,atomic_fract_el[i]*A_el[i]*A_el[i]);
+
+	  hcosthe_thr->Fill(TMath::ATan(theta_rec),atomic_fract_el[i]*A_el[i]*A_el[i]);
+	  hthe_thr->Fill(theta_rec,atomic_fract_el[i]*A_el[i]*A_el[i]);
+	  hphi_thr->Fill(phi_rec-pi/2.,atomic_fract_el[i]*A_el[i]*A_el[i]);
+	  hlen_thr->Fill(L_true/1000.,atomic_fract_el[i]*A_el[i]*A_el[i]);
+	  hene_thr->Fill(E_rec*1000,atomic_fract_el[i]*A_el[i]*A_el[i]);
+	  
+	}
+      }
+      
+      gr_sigma[i]->SetPoint(index,E_nu,sum_crsect);
+      index++;
+    }
+    log_file << "Thr=100 nm " << el[i] << "\t " << "Events= " << num_ev_el << " " << "Error= " << err_num_ev_el << endl;
+    cout << i << " " << el[i] << " " <<  num_ev << " " << err_num_ev << " " << sum_crsect <<  " " << num_ev_miss <<  " " << " " << num_ev_el << endl;
+    //cout << spect_nu_e << " " << spect_antinu_e << " " << spect_nu_x << endl;
+  }
+  
+  log_file.close();
+
+  cmg = (TCanvas*)functions->gr_crsect();
+  cc7 = (TCanvas*)functions->trk_len();
+
+
+  TCanvas *c1 = new TCanvas("c1","c1",600,600);
+  h1->Draw("");
+  TCanvas *c11 = new TCanvas("c11","c11",600,600);
+  h11->Draw("");
+
+  TCanvas *cc1 = new TCanvas("cc1","cc1",600,600);
+  hthe->Draw("");
+  h2->Draw("same");
+  hthe->SetLineColor(1);
+  h2->SetLineColor(2);
+  
+  Double_t ks0 = hthe->KolmogorovTest(h2);
+  cout << "KS_theta " << ks0 << endl;
+  
+  TCanvas *c2 = new TCanvas("c2","c2",600,600);
+  h2->Draw("");
+  
+  
+  TCanvas *c4 = new TCanvas("c4","c4",600,600);
+  h4->Draw("");
+  h44->Draw("same");
+  h44->SetLineColor(1);
+  h4->SetLineColor(2);
+
+  Double_t ks = h4->KolmogorovTest(h44);
+  cout << "KS_ene " << ks << endl;
+  
+  TCanvas *clen = new TCanvas("clen","clen",600,600);
+  hlen_thr->Draw("");
+  hlen_thr->Scale(num_ev/hlen_thr->Integral());
+
+  TCanvas *cene = new TCanvas("cene","cene",600,600);
+  hene_thr->Draw("");
+  hene_thr->Scale(num_ev/hene_thr->Integral());
+
+  TCanvas *cphi = new TCanvas("cphi","cphi",600,600);
+  hphi_thr->Draw("");
+  hphi_thr->Scale(num_ev/hphi_thr->Integral());
+
+  TCanvas *cthe = new TCanvas("cthe","cthe",600,600);
+  hthe_thr->Draw("");
+  hthe_thr->Scale(num_ev/hthe_thr->Integral());
+
+  TCanvas *ccosthe = new TCanvas("ccosthe","ccosthe",600,600);
+  hcosthe_thr->Draw("");
+  hcosthe_thr->Scale(num_ev/hcosthe_thr->Integral());
+ 
+
+
+  cmg2 = new TCanvas("cmg2","cmg2",600,600);
+  
+  for(int i=0;i<3;i++){
+    gr_spect[i]->SetTitle(flavour[i]);
+    gr_spect[i]->SetLineWidth(2);
+    gr_spect[i]->SetLineColor(i+1);
+    //gr_spect[i]->SetMarkerStyle(22);
+    gr_spect[i]->SetFillColor(0);
+    mg2->Add(gr_spect[i]);
+  }
+  
+  cmg2->cd();
+  cmg2->SetFillStyle(4000);
+  //cmg2->SetLogy();
+  mg2->Draw("AL");
+  mg2->GetXaxis()->SetTitle("E_{#nu} [MeV]");
+  mg2->GetYaxis()->SetTitle("f(E) [ MeV^{-1} ]");
+  cmg2->BuildLegend();
+
+
+  TCanvas *c15 = new TCanvas("c15","c15",1200,1200);
+  c15->Divide(2,2);
+  c15->cd(1);
+  hpx_cm->Draw("");
+  c15->cd(2);
+  hpy_cm->Draw("");
+  c15->cd(3);
+  hpz_cm->Draw("");
+  c15->cd(4);
+  hpy_lab->Draw("");
+  
+  
+  TCanvas *cc2 = new TCanvas("cc2","cc2",600,600);
+  hphi->Draw("");
+  hphi->Scale(num_ev/hphi->Integral());
+  //hphi->Fit("fphi");
+  
+  
+  delete functions;
+}

@@ -1,0 +1,130 @@
+#include <stdio.h>
+#include <iostream>
+#include <math.h>
+#include <cmath>
+#include <iomanip>      // std::setprecision
+#include <fstream>
+#include <vector>
+#include <time.h>
+
+#include "TH1F.h"
+#include "TMath.h"
+#include "TComplex.h"
+#include "TCanvas.h"
+#include "TTree.h"
+#include "TFile.h"
+#include "TStyle.h"
+#include "TString.h"
+#include "TLine.h"
+#include "TROOT.h"
+#include "TCanvas.h"
+#include "TMultiGraph.h"
+#include "TGraph.h"
+#include "TLegend.h"
+#include "TPaveStats.h"
+
+#include "Definitions_sn2.h"
+#include "Functions.h"
+#include "EnergyRangeCorrelation.C"
+#include "TRandom3.h"
+#include <TSystem.h>
+
+
+
+using namespace std;
+
+void Sun_nu() {
+
+  Double_t sum_flux=0;
+  Double_t tmp_B_rate=0;
+  Int_t iline=0;
+  Int_t resto=-1;
+  Double_t B_en[818]={};
+  Double_t B_rate[818]={};
+  
+  TString dir = gSystem->UnixPathName(__FILE__);
+  dir.ReplaceAll("Sun_B.c","");
+  dir.ReplaceAll("/./","/");
+  ifstream in;
+  in.open(Form("%sboron_spectrum.txt",dir.Data()));
+
+  while (1) {
+    in >> B_en[iline] >> B_rate[iline];
+    if (!in.good()) break;
+    // cout << B_en[iline] << " " << B_rate[iline];
+    iline++;
+  }
+
+  ofstream log_file;
+  log_file.open ("num_eventi.txt");
+  log_file << "Sun Boro induced recoil rate";
+  log_file << endl;
+  
+  Functions* functions;
+
+  functions = new Functions();
+  
+
+  //for(int i=2; i<3;i++){   // for Xenon cross-check    (SEE ALSO DEFINITIONS2.H)
+  for(int i=0; i<n_el;i++){
+    
+    iel = el[i];
+    iZ_el = Z_el[i];
+    iA_el = A_el[i];
+    ifract_el = atomic_fract_el[i]; // uma
+    imass_fract = mass_fract[i];
+    iM_el=iA_el*uma;
+    iN_el = N_el[i];
+    num_ev_bkg=0;
+    tmp_B_rate=0;
+    sum_flux=0;
+    //cout << iel << " " << iZ_el << " " << iA_el << " " << ifract_el << " " << imass_fract << " " << iM_el << " " << iN_el << endl;
+    
+    
+    for(int j=5; j<818;j++){
+      resto = j % 5;
+      if(resto==0){
+	E_nu=(j/50.);
+	sum_crsect=0;
+	//iflux_boron_vs_E=B_rate[j]*integral_flux_boron*(1./10.);
+	iflux_boron_vs_E=integral_flux_boron*((TMath::Abs(B_rate[j]+tmp_B_rate))*(1./10.)/2.);
+	sum_flux += iflux_boron_vs_E;
+	//cout << j << " " << E_nu  << " " << B_rate[j] << " " << tmp_B_rate <<  " " << sum_flux << endl;
+
+      
+      for(int k=0;k<d_theta;k++){
+		
+	cos_theta = -1 + 1./d_theta + k*(2./d_theta); // devi moltiplicare per delta theta		
+	E_rec = (E_nu*E_nu*(1-cos_theta))/(E_nu*(1-cos_theta)+iM_el*TMath::Power(10,3)); // MeV
+	crsect = functions->cross_section();
+	sum_crsect+=crsect;
+	//cout << E_rec << endl;
+	/// XENON CROSS-CHECK
+	/*if(E_rec>0.002){ 
+	  num_ev_bkg = functions->num_eventi_bkg();
+	  sum_ev_bkg = sum_ev_bkg + num_ev_bkg;
+	  }*/
+	/////
+	
+	L_true = GetRangeFromEnergy(iZ_el,E_rec*1000);
+	L_proj = L_true*cos_theta_rec;
+	//cout << j << " " << k << " " << crsect << " " << dN_vs_dE_bkg << " " << num_ev_bkg << " " << sum_ev_bkg << endl;
+	
+	if(L_true > 100 && L_true<1500 && E_rec>0.002){
+	  num_ev_bkg = functions->num_eventi_bkg();
+	  sum_ev_bkg = sum_ev_bkg + num_ev_bkg;
+	  h_len->Fill(L_true/1000.,atomic_fract_el[i]*A_el[i]*A_el[i]);
+	}
+      }
+      tmp_B_rate=B_rate[j];
+    }
+      if(E_nu==10)cout << E_nu << " " << sum_crsect << " " << int_const_bkg << endl;
+    }
+    cout << iel << " " << sum_ev_bkg << endl;
+  }
+  num_ev_bkg=sum_ev_bkg*86400*365;
+  cout << num_ev_bkg << endl;
+  h_len->Draw("");
+  h_len->Scale(num_ev_bkg/h_len->Integral());
+  delete functions;
+}

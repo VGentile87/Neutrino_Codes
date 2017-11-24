@@ -1,0 +1,244 @@
+//*******************************
+// Revision 1: 25/10/2015 (Valerio)
+// - revison of recoil classification:
+//   S included both in heavy and light nuclei
+//
+//*******************************
+
+#if !defined (__CINT__) || defined (__MAKECINT__)
+#include "Rtypes.h"
+#endif
+
+#include "TH1F.h"
+#include "TMath.h"
+#include "TCanvas.h"
+#include "TTree.h"
+#include "TFile.h"
+#include "TStyle.h"
+#include <cmath>
+#include <iomanip>      // std::setprecision
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <stdio.h>
+#include "TH1F.h"
+#include "TH2F.h"
+#include "TROOT.h"
+#include "TCanvas.h"
+#include "TRandom3.h"
+#include "TMath.h"
+#include "TProfile.h"
+#include "TF1.h"
+#include "TGraph.h"
+#include "TFile.h"
+
+using namespace std;
+
+//// TEST DI CONTROLLO //////////////////////////////////////////////////////////
+/*
+const Int_t n_el = 6;
+TString el[n_el]={"O","Pb","Xe","Ge","Ar","Si"};
+Double_t M_riv = 1; //ton
+//Double_t M_el[n_el]={14.8966,192.924,122.247,67.6257,37.1955,26.1499}; // uma
+Double_t A_el[n_el]={15.999,207.2,131.293,72.63,39.948,28.085}; // uma
+Double_t Z_el[n_el]={8,82,54,32,18,14}; // uma
+Double_t atomic_fract_el[n_el]={1,1,1,1,1,1}; // uma
+Double_t mass_fract[n_el]={1,1,1,1,1,1}; // uma
+TString flavour[3]={"#nu_{e}","#bar{#nu}_{e}","#nu_{x}"};
+//Double_t N_el[n_el]={7.999,125.2,77.293,40.63,21.948,14.085}; // uma
+Double_t M_el[n_el]={};
+Double_t N_el[n_el]={};
+*/
+//////////////////////////////////////////////////////////////////////////////
+
+
+////// TEST NEWS   ////////////////////////////////////////////////////////////
+
+const Int_t n_el = 7;
+Double_t M_riv = 1; //ton
+// Int_t index=0;
+TString el[n_el]={"Ag","Br","I","C","O","N","S"};
+TString flavour[3]={"#nu_{e}","#bar{#nu}_{e}","#nu_{x}"};
+Int_t Z_el[n_el]={47,35,53,6,8,7,16};
+Double_t A_el[n_el]={107.8682,79.904,126.90447,12.011,15.999,14.00674,32.066};
+Double_t atomic_fract_el[n_el]={0.10,0.10,0.004,0.214,0.118,0.049,0.003}; // uma
+Double_t mass_fract[n_el]={0.44,0.32,0.019,0.101,0.074,0.027,0.003}; // uma
+//Double_t thr_el[n_el]={110,85,120,17,22,20,44}; //keV   cut 50 nm
+//Double_t thr_el[n_el]={55,45,60,10,11.5,13,25}; //keV     cut 30 nm
+Double_t thr_el[n_el]={250,180,275,35,45,41,90}; //keV   cut 100 nm   
+Double_t M_el[n_el]={};
+Double_t N_el[n_el]={};
+
+//////////////////////////////////////////////////////////////////////////////
+
+Double_t E_nu_max=100;   //100
+Double_t num_ev=0;
+Double_t num_ev_el=0;
+Double_t num_ev_miss=0;
+Double_t err_num_ev=0;
+Double_t err_num_ev_el=0;
+Double_t pi = TMath::Pi();
+Double_t GF = 1.16637*TMath::Power(10,-11); // MeV^-2
+Double_t sin2wnb = 0.239;
+Double_t s=0.9; // fm 
+Double_t res = 5; // degree    
+Double_t uma = 0.9310986; //GeV
+Double_t dist_sn = 10; //kpc
+Double_t int_const=0.;
+Float_t L_true=0.;
+Double_t L_proj=0.;
+
+Double_t sum_ev_bkg=0;
+Double_t num_ev_bkg=0;
+Double_t flux_boron=5.58*TMath::Power(10,6);
+Double_t int_const_bkg=0.;
+Double_t dN_vs_dE_bkg=0.;
+//Double_t flux_boron_vs_E[17]={0,74438,228550,412460,554100,661470,744380,701700,661470,554100,412460,272830,151180,66147,11253,587,15};
+Double_t flux_boron_vs_E[818]={};
+Double_t integral_flux_boron = 5.58*TMath::Power(10,6);
+Double_t iflux_boron_vs_E=0.;
+
+Int_t d_theta = 900;//360/5;
+
+Double_t fm_in_GeV=1./0.1975; 
+Double_t GeV_in_MeV=1000;
+Double_t iMeV_in_fm=197.5;
+Double_t kpc_in_cm =3.086*TMath::Power(10,21);
+Double_t uma_in_ton = 1.66054*TMath::Power(10,-30);
+
+Double_t    N_nu_e = 2.8*TMath::Power(10,57);
+Double_t    err_N_nu_e = 0.3*TMath::Power(10,57);
+Double_t    meanE_nu_e = 11; // MeV
+Double_t    err_meanE_nu_e = 1; // MeV
+Double_t    beta_nu_e = (3./meanE_nu_e); // MeV^-1
+Double_t    intE_nu_e=0.0;
+   
+Double_t    N_antinu_e = 2.1*TMath::Power(10,57);
+Double_t    err_N_antinu_e = 0.4*TMath::Power(10,57);
+Double_t    meanE_antinu_e = 15; // MeV
+Double_t    err_meanE_antinu_e = 3; // MeV
+Double_t    beta_antinu_e = (3./meanE_antinu_e); // MeV^-1
+Double_t    intE_antinu_e=0.0;
+   
+Double_t    N_nu_x = 1.5*TMath::Power(10,57);
+Double_t    err_N_nu_x = 0.4*TMath::Power(10,57);
+Double_t    meanE_nu_x = 21; // MeV
+Double_t    err_meanE_nu_x = 6; // MeV
+Double_t    beta_nu_x = (3./meanE_nu_x);  // MeV^-1
+Double_t    intE_nu_x=0.0;
+
+Double_t spect_nu_e=0.0;
+Double_t spect_antinu_e=0.0;
+Double_t spect_nu_x=0.0;
+
+Double_t    E_nu=0.;
+Double_t    E_rec=0.;
+Double_t    q=0.;
+Double_t    qrn=0.;
+Double_t    qs=0.;
+Double_t    Fq=0.;
+Double_t    crsect=0.;
+Double_t    cos_theta=0.;
+Double_t    C=0.;
+Double_t    dN_vs_dE=0.;
+Double_t    sum_E=0.;
+Double_t    sum_cos_theta=0.;
+Double_t    sum_crsect=0.;
+//Int_t    index=0;
+TString    iel = " ";
+Int_t    iZ_el = 0;
+Double_t    iA_el = 0.;
+Double_t    ifract_el = 0.; // uma
+Double_t imass_fract=0.;
+Double_t    iM_el = 0.;
+Double_t    iN_el = 0.;
+Double_t    ithr_el = 0.;
+Double_t iQw;
+Double_t irn;  // fm
+Double_t cos_theta_rec=0.;
+Double_t domega=0.;
+Double_t theta_rec=0.;
+Double_t theta_nu=0.;
+Double_t phi_rec=0.;
+
+TGraph *gr_sigma[n_el] = {new TGraph()};
+TMultiGraph *mg = new TMultiGraph();
+TCanvas *cmg;
+TCanvas *cc7;
+
+TGraph *gr_spect[3] = {new TGraph()};
+TMultiGraph *mg2 = new TMultiGraph();
+TCanvas *cmg2;
+
+TH1D *h1 = new TH1D("","costheta_incoming",360,-1,1);
+TH1D *h7 = new TH1D("L_true","L_true",350,0,35);
+TProfile *h6 = new TProfile("h6","h6",1000,0,2000,0,35);
+TH1D *h2 = new TH1D("theta","theta",360,-pi,pi);
+TH1D *h22 = new TH1D("domega","domega",100,-1,1);
+TH1D *h3 = new TH1D("theta_nu","theta_nu",360,0,0.002);
+TH1D *h4 = new TH1D("ene_rec","ene_rec",2000,0,2000);
+TH1D *h44 = new TH1D("ene_rec_thr_1kev","ene_rec_thr_1kev",2000,0,2000);
+
+TH1D *hh0 = new TH1D("L_proj Ag","L_proj Ag",350,0,35);
+TH1D *hh1 = new TH1D("L_proj Br","L_proj Br",350,0,35);
+TH1D *hh2 = new TH1D("L_proj I","L_proj I",350,0,35);
+TH1D *hh3 = new TH1D("L_proj C","L_proj C",350,0,35);
+TH1D *hh4 = new TH1D("L_proj O","L_proj O",350,0,35);
+TH1D *hh5 = new TH1D("L_proj N","L_proj N",350,0,35);
+TH1D *hh6 = new TH1D("L_proj S","L_proj S",350,0,35);
+
+
+TH1D *h77 = new TH1D("theta_rec_range","theta_rec_range",360,-pi,pi);
+TH1D *h11 = new TH1D("L_true_range","L_true_range",1000,0,10);
+
+TH1D *h_len = new TH1D("L_true_b","L_true_b",150,0,0.5);
+
+Double_t E_nu_cm =0;
+Double_t E_rec_cm =0; 
+Double_t rnd_cos_theta_cm=0; 
+Double_t rnd_phi_cm=0; 
+Double_t px_cm=0; 
+Double_t py_cm=0; 
+Double_t pz_cm=0;
+Double_t p_mod_cm=0;
+Double_t beta_cm=0;
+Double_t gamma_cm=0;
+Double_t py_lab=0;
+Double_t E_rec_lab=0;
+Double_t E_tot_lab=0;
+Double_t p_mod_lab=0;
+Double_t the_rec=0;
+
+
+TH1D *hpx_cm = new TH1D("","hpx_cm",200,-100,100);
+TH1D *hpy_cm = new TH1D("","hpy_cm",200,-100,100);
+TH1D *hpz_cm = new TH1D("","hpz_cm",200,-100,100);
+TH1D *hpy_lab = new TH1D("","hpy_lab",200,-100,100);
+TH1D *hphi = new TH1D("phi_rec","phi_rec",360,-pi,pi);
+TH1D *hthe = new TH1D("the_rec","the_rec",360,-pi,pi);
+
+
+
+
+
+Double_t tmp_B_rate=0;
+////// WIMP DEFINITIONS /////////
+Double_t MN=0;
+Double_t Mp=0;
+Double_t xsec=0;
+Double_t Md=0;
+Double_t r=0;
+Double_t R0=0;
+Double_t densdm=0.3; //0.4
+Double_t v0=230.0;
+Double_t numav=6.02*TMath::Power(10,26);
+Double_t exp1=0;
+Double_t vE=244;
+Double_t E0=0;
+Double_t c=299792.458;
+Double_t vmin=0;
+Double_t vesc=600;
+Double_t num_wimp_ev=0;
+Double_t crsect_wimp=5*TMath::Power(10,-45);
+Double_t C1=0.751;
+Double_t C2=0.561;

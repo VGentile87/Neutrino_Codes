@@ -1,0 +1,463 @@
+//  AUTHOR: V. GENTILE  2017 // 
+
+#include <stdio.h>
+#include <iostream>
+#include <math.h>
+#include <cmath>
+#include <iomanip>      // std::setprecision
+#include <fstream>
+#include <vector>
+#include <time.h>
+
+#include "TF1.h"
+#include "TH1F.h"
+#include "TH3F.h"
+#include "TMath.h"
+#include "TComplex.h"
+#include "TCanvas.h"
+#include "TTree.h"
+#include "TFile.h"
+#include "TStyle.h"
+#include "TString.h"
+#include "TLine.h"
+#include "TROOT.h"
+#include "TCanvas.h"
+#include "TMultiGraph.h"
+#include "TGraph.h"
+#include "TLegend.h"
+#include "TPaveStats.h"
+
+#include "TVector3.h"
+#include "TRotation.h"
+
+#include "Definitions_boro.h"
+#include "Functions.h"
+#include "EnergyRangeCorrelation.C"
+#include "TRandom3.h"
+#include <TSystem.h>
+
+
+
+using namespace std;
+
+void Sun_B_newfluence2() {
+
+
+  ofstream log("phi_theta.dat");
+  //ofstream log2("xyz.dat");
+  
+  Double_t threshold;
+  cout << "Inserisci soglia [nm]" << endl;
+  cin  >> threshold;
+  
+
+  //// LEWIN-SMITH GALACTIC COORDINATES ////////////////////////////  
+  Double_t bx=5.536*TMath::Pi()/180.;
+  Double_t by=-59.574*TMath::Pi()/180.;
+  Double_t bz=-29.811*TMath::Pi()/180.;
+  Double_t lx=266.840*TMath::Pi()/180.;
+  Double_t ly=347.340*TMath::Pi()/180.;
+  Double_t lz=180.023*TMath::Pi()/180.;
+
+  Double_t euler_phi = -TMath::ATan(TMath::Cos(by)*TMath::Cos(pi/2. + lz-ly)/TMath::Cos(bx)*TMath::Cos(pi/2. + lz-lx));
+  //Double_t euler_phi = TMath::ATan(TMath::Cos(bx)*TMath::Cos(pi/2. + lz-lx)/TMath::Cos(by)*TMath::Cos(pi/2. + lz-ly));
+  Double_t euler_the = pi/2. + bz;
+  Double_t euler_xsi = 0; 
+
+  TVector3 v0(TMath::Cos(bx)*TMath::Cos(pi/2. + lz-lx),TMath::Cos(by)*TMath::Cos(pi/2. + lz-ly),0);
+
+  TH3F *h3d1 = new TH3F("h3d1","h3d1",100,-10,10,100,-10,10,100,-10,10);
+  TH3F *h3d2 = new TH3F("h3d2","h3d2",100,-10,10,100,-10,10,100,-10,10);
+
+  double vz=0;
+  TH1F *hv2 = new TH1F("vz","",100,-50,50);
+  
+  cout << euler_phi << " " << euler_the << endl;
+  
+  TF1 *fx = new TF1("fx","[0]*sin(x - [1] + [2])",0,2*TMath::Pi());
+  TF1 *fy = new TF1("fy","[0]*sin(x - [1] + [2])",0,2*TMath::Pi());
+  TF1 *fz = new TF1("fz","[0]*sin(x - [1] + [2])",0,2*TMath::Pi());
+  fx->SetParameter(0,TMath::Cos(bx));
+  fx->SetParameter(1,lx);
+  fx->SetParameter(2,ly);
+  fy->SetParameter(0,TMath::Cos(by));
+  fy->SetParameter(1,ly);
+  fy->SetParameter(2,ly);
+  fz->SetParameter(0,TMath::Cos(bz));
+  fz->SetParameter(1,lz);
+  fz->SetParameter(2,ly);
+
+  TF1 *fphi = new TF1("fphi","atan2(fx,fy)",0,2*TMath::Pi());
+  TF1 *fthe = new TF1("fthe","atan2(fz,sqrt(fx*fx+fy*fy))",0,2*TMath::Pi());
+  TH1F *hr = new TH1F("hr","hr",100,0,2*TMath::Pi());
+  //TH1F *hphiB = new TH1F("hphiB","hphiB",100,0,2*TMath::Pi());
+  //TH1F *htheB = new TH1F("htheB","htheB",100,0,2*TMath::Pi());
+  TH1F *hphiB = new TH1F("hphiB","hphiB",100,-pi,pi);
+    
+  
+  TH2F *hphitheB = new TH2F("hphitheB","hphitheB",128,-pi,pi,128,-pi/2.,pi/2.);
+  TH2F *hphithevec = new TH2F("hphithevec","hphithevec",128,-pi,pi,128,-pi/2.,pi/2.);
+  //TH2F *hphitheB = new TH2F("hphitheB","hphitheB",100,-pi,pi,100,0,pi);
+  TH1F *htheB = new TH1F("htheB","htheB",100,-pi,pi);
+  TH1F *hcostheB = new TH1F("hcostheB","hcostheB",900,-1,1);
+
+  TRandom3 *rr = new TRandom3();
+  TRandom3 *r = new TRandom3();
+  Double_t t = 0;
+  Double_t a = 0;
+  Double_t b = 0;
+  Double_t px = 0;
+  Double_t py = 0;
+  Double_t pz = 0;
+  Double_t pphi = 0;
+  Double_t pthe = 0;
+  Double_t pthe_comp = 0;
+  for(int i=0;i<180000;i++){
+    t = r->Uniform(0,2*TMath::Pi());
+    px = TMath::Cos(bx)*TMath::Sin(t-lx+ly);
+    py = TMath::Cos(by)*TMath::Sin(t-ly+ly);
+    pz = TMath::Cos(bz)*TMath::Sin(t-lz+ly);
+    pphi = TMath::ATan2(px,py);
+    pthe = TMath::ATan(pz/TMath::Sqrt(px*px + py*py));
+    //pthe = TMath::ATan(TMath::Sqrt(px*px + py*py)/pz);
+    // if(pthe<0)pthe=pthe+pi;
+    /* hr->Fill(t);
+    hphiB->Fill(pphi);
+    hcostheB->Fill(TMath::Cos(pthe));
+    htheB->Fill((pthe));*/
+    //hphitheB->Fill(pphi,pthe);
+  }
+
+  /*
+  TCanvas *cc1 = new TCanvas("cc1","cc1",1200,600);
+  cc1->Divide(2,1);
+  cc1->cd(1);
+  fphi->Draw("P");
+  cc1->cd(2);
+  fthe->Draw("P");
+  */
+
+
+  
+  /*
+  TCanvas *cd = new TCanvas("cd","cd",600,600);
+  hphiB->Draw("");
+  TCanvas *ce = new TCanvas("ce","ce",600,600);
+  htheB->Draw("");*/
+  //TCanvas *cf = new TCanvas("cf","cf",600,600);
+  //hphitheB->Draw("");
+  ///////////////////////////////////////////
+
+
+  
+  TRandom3 *tt = new TRandom3();
+  Double_t sum_flux=0;
+  Double_t tmp_B_rate=0;
+  Int_t iline=0;
+  Int_t resto=-1;
+  Double_t B_en[818]={};
+  Double_t B_rate[818]={};
+  
+  TString dir = gSystem->UnixPathName(__FILE__);
+  dir.ReplaceAll("Sun_B_newfluence2.c","");
+  dir.ReplaceAll("/./","/");
+  ifstream in;
+  in.open(Form("%sboron_spectrum.txt",dir.Data()));
+
+  while (1) {
+    in >> B_en[iline] >> B_rate[iline];
+    if (!in.good()) break;
+    //cout << B_en[iline] << " " << B_rate[iline] << endl;
+    iline++;
+  }
+
+  //////////////////////////////////////////////////////
+
+
+  ofstream log_file;
+  log_file.open ("num_eventi.txt");
+  log_file << "Sun Boro induced recoil rate";
+  log_file << endl;
+  
+  
+  Functions* functions;
+
+  functions = new Functions();
+  
+  gStyle->SetOptStat(11111111);
+  gStyle->SetStatW(0.2);
+  gStyle->SetStatH(0.15);
+
+  gr_spect[0]=new TGraph();
+  gr_spect[1]=new TGraph();
+  gr_spect[2]=new TGraph();
+
+  h4->Sumw2();
+  h44->Sumw2();
+  h2->Sumw2();
+  h22->Sumw2();
+
+  //// COSTHETA  //////////////////////////////////////////////////////
+  TH1F* h_norm_cos_theta = new TH1F("norm_theta","nt",200,-1,1);
+  for(int k=0;k<d_theta;k++){
+    h_norm_cos_theta->Fill(-1 + 1./d_theta + k*(2./d_theta),1./d_theta + k*(2./d_theta));
+  }
+  //TCanvas *cnt = new TCanvas("cnt","cnt",600,600);
+  //h_norm_cos_theta->Draw("");
+  //h_norm_cos_theta->Scale(1./h_norm_cos_theta->Integral());
+  /////////////////////////////////////////////////////////////////
+
+  for(int i=0; i<n_el;i++){
+    h1[i] = new TH1D(Form("th_el_%d",i),"",100,-pi,pi);
+    h11[i] = new TH1D(Form("phi_el_%d",i),"",100,-pi,pi);
+    iel = el[i];
+    iZ_el = Z_el[i];
+    iA_el = A_el[i];
+    ifract_el = atomic_fract_el[i]; // uma
+    imass_fract = mass_fract[i];
+    iM_el=iA_el*uma;
+    iN_el = N_el[i];
+    num_ev_bkg=0;
+    tmp_B_rate=0;
+    sum_flux=0;
+    
+    for(int j=5; j<818;j++){
+      resto = j % 5;
+      if(resto==0){
+	E_nu=(j/50.);
+	sum_crsect=0;
+	iflux_boron_vs_E=integral_flux_boron*((TMath::Abs(B_rate[j]+tmp_B_rate))*(1./10.)/2.);
+	sum_flux += iflux_boron_vs_E;
+	//cout << j << " " << E_nu  << " " << B_rate[j] << " " << tmp_B_rate <<  " " << sum_flux << endl;
+	
+	//h1->Reset(0);
+	
+	for(int k=0;k<d_theta;k++){	  
+	  //////  CROSS SECTION  /////////////////////////////
+	  cos_theta = -1 + 1./d_theta + k*(2./d_theta);     // dtheta
+	  crsect = functions->cross_section();              // sez. d'urto 
+	  sum_crsect = crsect + sum_crsect;	            // somma sez. d'urto
+	  E_rec = (E_nu*E_nu*(1-cos_theta))/(E_nu*(1-cos_theta)+iM_el*TMath::Power(10,3)); // energia nucluear recoil (MeV)
+	  costheta_sc = ((E_nu + iM_el*TMath::Power(10,3))/(E_nu))*TMath::Sqrt(E_rec/(2*iM_el*TMath::Power(10,3)));  // angolo nuclear recoil rispetto neutrino incidente
+	  L_true = GetRangeFromEnergy(iZ_el,E_rec*1000);    // lunghezza traccia rinculo
+	  L_proj = L_true*cos_theta_rec;                    // lunghezza proiettata sul piano di emulsione
+	  ////////////////////////////////////////////////////
+
+	  //cout << k << " " << cos_theta << " " << E_rec << " " << L_true << " " << whist[k] << endl; 
+
+	  ////////////////////  BOOST LORENTZ  /////////////////////////////////////////////////////////////
+	  E_nu_cm = E_nu*TMath::Sqrt((iM_el*1000)/(iM_el*1000+2*E_nu)); //MeV    
+	  E_rec_cm = TMath::Sqrt(E_nu_cm*E_nu_cm+iM_el*iM_el*1000000);  //MeV
+	  
+	  rnd_cos_theta_cm = tt->Uniform(-1,1);
+	  rnd_phi_cm = tt->Uniform(0,2*TMath::Pi());
+	  
+	  px_cm = E_nu_cm*TMath::Sqrt((1-TMath::Power(rnd_cos_theta_cm,2)))*TMath::Sin(rnd_phi_cm);
+	  py_cm = E_nu_cm*TMath::Sqrt((1-TMath::Power(rnd_cos_theta_cm,2)))*TMath::Cos(rnd_phi_cm);
+	  pz_cm = E_nu_cm*rnd_cos_theta_cm;
+	  p_mod_cm = TMath::Sqrt(px_cm*px_cm + py_cm*py_cm + pz_cm*pz_cm);
+	  
+	  beta_cm = E_nu/(E_nu + iM_el*1000);
+	  gamma_cm = (E_nu + iM_el*1000)/(TMath::Sqrt(iM_el*iM_el*1000000 + 2*E_nu*iM_el*1000));
+	  px_lab = beta_cm*gamma_cm*E_rec_cm + gamma_cm*px_cm;
+	  E_tot_lab = gamma_cm*E_rec_cm + beta_cm*gamma_cm*py_cm;  //MeV
+	  E_rec_lab = gamma_cm*E_rec_cm + beta_cm*gamma_cm*py_cm - iM_el*1000; //MeV
+	  p_mod_lab = TMath::Sqrt(E_tot_lab*E_tot_lab - iM_el*iM_el*1000000);
+	  //the_rec = TMath::ATan2(TMath::Sqrt((1-TMath::Power(rnd_cos_theta_cm,2))),(gamma_cm*(beta_cm*(E_rec_cm/p_mod_cm)+rnd_cos_theta_cm)));  //buono
+	  the_rec = TMath::ATan2(TMath::Sqrt((1-TMath::Power(rnd_cos_theta_cm,2))),(gamma_cm*(beta_cm*(E_rec_cm/p_mod_cm)+rnd_cos_theta_cm)));  //buono
+	  //phi_rec = TMath::ATan2(py_lab,px_cm);
+	  phi_rec = TMath::ATan2(py_cm,px_lab);
+	  
+	  hpx_cm->Fill(px_cm);
+	  hpy_cm->Fill(py_cm);
+	  hpz_cm->Fill(pz_cm);
+	  hpx_lab->Fill(px_lab);
+	  ///////////////////////////////////////////////////////////////////////////////////////////////
+
+	  h2->Fill(TMath::ACos(costheta_sc));
+	  h22->Fill(the_rec);
+	  h4->Fill(E_rec*1000);
+	  h44->Fill(E_rec_lab*1000);
+
+	  if(L_true>=threshold && L_true<=1000){
+	    num_ev_bkg = functions->num_eventi_bkg();
+	    sum_ev_bkg = sum_ev_bkg + num_ev_bkg;
+	    h1[i]->Fill(TMath::ACos(costheta_sc));
+	    h11[i]->Fill(phi_rec);
+	    hthe_thr->Fill(the_rec);
+	    hcosthe_thr->Fill(TMath::Cos(the_rec));
+	    hphi_thr->Fill(phi_rec);
+	    hlen_thr->Fill(L_true/1000.,atomic_fract_el[i]*A_el[i]*A_el[i]);
+	    hene_thr->Fill(E_rec*1000);
+	  }
+	  ///////////////////////////////////	
+	}	
+	tmp_B_rate=B_rate[j];
+      }
+    }
+    cout << iel << " " << sum_ev_bkg << endl;
+    
+    
+    for(int k=0;k<150;k++){
+      //theta_sc = 0;//pi/2;
+      if(h1[i]->GetEntries()!=0){
+	theta_sc = h1[i]->GetRandom();
+	
+	for(int l=0;l<150;l++){
+	  
+	  t = r->Uniform(-pi,pi);
+	  a = rr->Uniform(-pi,pi);
+	  //a=0;
+	  //b = tt->Uniform(0,0.26);
+	  //cout << t << " " << a << endl;      
+	  
+	  
+	  px = TMath::Cos(bx)*TMath::Cos(t-lx);  // centro galattico
+	  py = TMath::Cos(by)*TMath::Cos(t-ly);  // cigno
+	  pz = TMath::Cos(bz)*TMath::Cos(t-lz);  // normale a centro galattico	
+	  pphi = TMath::ATan2(px,py);
+	  pthe = TMath::ATan(-pz/TMath::Sqrt(px*px + py*py));
+
+	  hphitheB->Fill(pphi,pthe);
+	  
+	  euler_xsi = t;
+	  //TVector3 v1(TMath::Cos(b),TMath::Cos(a)*TMath::Sin(b),TMath::Sin(b)*TMath::Sin(a)); // v3 = (1,2,3)
+	  TVector3 v1(TMath::Cos(theta_sc),TMath::Cos(a)*TMath::Sin(theta_sc),TMath::Sin(theta_sc)*TMath::Sin(a));
+	  //TVector3 v1(TMath::Sin(theta_sc)*TMath::Cos(a),-TMath::Cos(theta_sc),TMath::Sin(theta_sc)*TMath::Sin(a)); 
+	  TRotation rot;
+	  TRotation rot_inv;
+	  rot.SetXEulerAngles(euler_phi,euler_the,euler_xsi);
+	  //rot.SetXEulerAngles(euler_xsi,euler_the,euler_phi);
+	  rot_inv = rot.Inverse();
+	  v1.Transform(rot_inv);
+	  //v1 *= rot_inv;
+	  
+	  vz=v1(2);
+	  hv2->Fill(vz);
+	  
+	  theta_sum = TMath::ATan(-v1(2)/TMath::Sqrt(v1(0)*v1(0)+v1(1)*v1(1)));
+	  theta_sum_comp = TMath::ATan(TMath::Sqrt(v1(0)*v1(0)+v1(1)*v1(1))/v1(2));
+	  phi_sum = TMath::ATan2(v1(0),v1(1));
+	  //phi_sum = TMath::ATan2(v1(1),v1(0));
+	  log << phi_sum << " " << theta_sum << endl;
+	  //log2 << v1(0) << " " << v1(1) << " " << v1(2) << endl;
+	  h3d2->Fill(v1(0),v1(1),v1(2));
+	  
+	  /////////////////////////////////////////////////////
+	  cos_theta_sum = TMath::Cos(theta_sum);
+	  //if(tt->Uniform(-1,1)<0)cos_theta_sum = -cos_theta_sum;
+	  h0->Fill(theta_sum_comp);
+	  h3->Fill(phi_sc,atomic_fract_el[i]*A_el[i]*A_el[i]);
+	  h33->Fill(theta_sc,atomic_fract_el[i]*A_el[i]*A_el[i]);
+	  h5->Fill(phi_sum,atomic_fract_el[i]*A_el[i]*A_el[i]);
+	  h55->Fill(theta_sum,atomic_fract_el[i]*A_el[i]*A_el[i]);
+	  
+	  //h00->Fill(theta_sum_comp,atomic_fract_el[i]*A_el[i]*A_el[i]);
+	  h00->Fill(theta_sum_comp);
+	  hphiB->Fill(pphi,atomic_fract_el[i]*A_el[i]*A_el[i]);
+	  htheB->Fill(pthe,atomic_fract_el[i]*A_el[i]*A_el[i]);
+	  hphithevec->Fill(phi_sum,theta_sum);
+	  
+      }
+      }
+    }
+    
+  }
+  num_ev_bkg=sum_ev_bkg*86400*365;
+  cout << num_ev_bkg << endl;
+
+  TCanvas *cphithe = new TCanvas("cphithe","cphithe",600,600);
+  hphithevec->Draw("");
+  hphitheB->SetMarkerColor(kRed);
+  hphitheB->Draw("sames");
+  
+
+  TCanvas *cv3d = new TCanvas("cv3d","cv3d",1200,600);
+  cv3d->Divide(2,1);
+  cv3d->cd(1);
+  h3d1->Draw("");
+  cv3d->cd(2);
+  h3d2->Draw("");
+
+  TCanvas *cv2 = new TCanvas("cv2","cv2",600,600);
+  hv2->Draw("");
+
+  TCanvas *cc2 = new TCanvas("cc2","cc2",1200,600);
+  //hthe->Draw();
+  cc2->Divide(2,1);
+  cc2->cd(1);
+  //7hr->Draw("");
+  //cc2->cd(2);
+  hphiB->Draw("");
+  cc2->cd(2);
+  htheB->Draw("");
+
+  TCanvas *cthe3 = new TCanvas("cthe3","cthe3",600,600);
+  h3->Draw("");
+  
+  
+  
+  TCanvas *c0 = new TCanvas("c0","c0",1200,600);
+  c0->Divide(2,1);
+  c0->cd(1);
+  h0->Draw("");
+  c0->cd(2);
+  h00->Draw("");
+
+  
+  TCanvas *c1 = new TCanvas("c1","c1",1200,600);
+  c1->Divide(4,2);
+  for(int s=0;s<7;s++){
+    c1->cd(s+1);
+    h1[s]->Draw("");
+  }
+
+  TCanvas *c11 = new TCanvas("c11","c11",1200,600);
+  c11->Divide(4,2);
+  for(int s=0;s<7;s++){
+    c11->cd(s+1);
+    h11[s]->Draw("");
+  }
+  
+  
+  TCanvas *c3 = new TCanvas("c3","c3",1200,600);
+  c3->Divide(2,1);
+  c3->cd(1);
+  h3->Draw("");
+  c3->cd(2);
+  h33->Draw("");
+
+  TCanvas *c5 = new TCanvas("c5","c5",600,600);
+  h5->Draw("");
+  TCanvas *c55 = new TCanvas("c55","c55",600,600);
+  h55->Draw("");
+  
+  
+  TCanvas *c2 = new TCanvas("c2","c2",600,600);
+  h2->Draw("");
+  h22->Draw("sames");
+  h2->SetLineColor(1);
+  h22->SetLineColor(2);
+  
+  Double_t ks0 = h2->KolmogorovTest(h22);
+  cout << "KS_theta " << ks0 << endl;
+  
+  
+  
+  TCanvas *c4 = new TCanvas("c4","c4",600,600);
+  h4->Draw("");
+  h44->Draw("sames");
+  h4->SetLineColor(1);
+  h44->SetLineColor(2);
+
+  Double_t ks = h4->KolmogorovTest(h44);
+  cout << "KS_ene " << ks << endl;
+
+  
+  
+  TCanvas *clen = new TCanvas("clen","clen",600,600);
+  hlen_thr->Draw("");
+
+  log.close();
+  //log2.close();
+}
